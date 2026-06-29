@@ -1,0 +1,11 @@
+{{define "rows"}}
+  {{if .Empty}}
+    {{template "row-empty" .}}
+  {{else}}
+    {{$cols := .Cols}}
+    {{range .Rows}}
+      {{template "row-generic" dict "Row" . "Cols" $cols}}
+    {{end}}
+    {{if .HasMore}}{{template "row-loader" .}}{{end}}
+  {{end}}
+{{end}}

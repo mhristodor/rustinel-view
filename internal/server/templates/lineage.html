@@ -1,0 +1,95 @@
+{{define "lineage-page"}}<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>rustinel — lineage of pid {{.PID}}</title>
+  <link rel="stylesheet" href="/static/app.css?v={{.AssetVer}}">
+  <script>window.RV_ICONS = {{iconsJSON}};</script>
+  <script src="/static/app.js?v={{.AssetVer}}" defer></script>
+</head>
+<body>
+
+<div class="shell shell-lineage">
+
+  <header class="header">
+    <h1>
+      <a href="/" class="header-home">
+        <span class="glyph">▰</span>RUSTINEL <span class="sub">// VIEW</span>
+      </a>
+    </h1>
+
+    <div class="stats">
+      <div class="stat">
+        <span class="stat-key">Alerts</span>
+        <span class="stat-val">{{counts .Meta.AlertsParsed}}</span>
+      </div>
+      <div class="stat">
+        <span class="stat-key">Events</span>
+        <span class="stat-val">{{counts .Meta.EventsParsed}}</span>
+      </div>
+      {{if not .Meta.EarliestEvent.IsZero}}
+      <div class="stat">
+        <span class="stat-key">Span</span>
+        <span class="stat-val">{{fmtSpan .Meta.EarliestEvent .Meta.LatestEvent}}</span>
+      </div>
+      {{end}}
+    </div>
+  </header>
+
+  <div class="lineage-bar">
+    <a href="{{.BackURL}}" class="lineage-back">← timeline</a>
+    <span class="lineage-title">
+      <span class="lin-title-key">lineage of pid</span>
+      <span class="lin-title-val">{{.PID}}</span>
+      {{if .View.Origin}}
+        {{if .View.Origin.ProcessName}}<span class="lin-title-name">· {{.View.Origin.ProcessName}}</span>{{end}}
+      {{end}}
+    </span>
+    {{if .View.Parents}}
+    <nav class="lin-crumbs" aria-label="ancestry">
+      {{range .View.Parents}}
+        <button type="button" class="lin-crumb" data-crumb-pid="{{.PID}}">{{.PID}}{{if .ProcessName}}·{{.ProcessName}}{{end}}</button>
+        <span class="lin-crumb-sep" aria-hidden="true">▸</span>
+      {{end}}
+      <button type="button" class="lin-crumb lin-crumb-origin" data-crumb-pid="{{.View.OriginPID}}">◎ {{.View.OriginPID}}</button>
+    </nav>
+    {{end}}
+    {{if .View.BuildMillis}}
+      <span class="lineage-meta">
+        <span>{{.View.NodeCount}} nodes · built in {{.View.BuildMillis}}ms</span>
+        {{if .View.Truncated}}<span class="lin-warn">⚠ tree truncated — pivot to a child to drill further</span>{{end}}
+      </span>
+    {{end}}
+    <span class="lin-bar-actions">
+      <button type="button" id="lin-goto-origin" class="lin-bar-btn">◎ origin</button>
+      <button type="button" id="lin-expand-all" class="lin-bar-btn">expand all</button>
+      <button type="button" id="lin-collapse-all" class="lin-bar-btn">collapse all</button>
+    </span>
+  </div>
+
+  <main class="main main-lineage">
+    {{if .Error}}
+      <div class="lineage-error">{{.Error}}</div>
+    {{else}}
+      <div class="lineage-tree">
+        {{/* The parent chain has been stitched into the Children graph
+             server-side, so we render one connected tree from the
+             topmost known ancestor (Parents[0]) down. If there are no
+             parents, the origin is itself the root. */}}
+        {{if .View.Parents}}
+          {{template "lin-node" index .View.Parents 0}}
+        {{else if .View.Origin}}
+          {{template "lin-node" .View.Origin}}
+        {{end}}
+      </div>
+      {{if not .View.OriginExists}}
+        <div class="lin-empty-note">PID {{.PID}} has no records in the snapshot. Showing empty origin.</div>
+      {{end}}
+    {{end}}
+  </main>
+
+</div>
+</body>
+</html>
+{{end}}

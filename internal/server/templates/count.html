@@ -1,0 +1,14 @@
+{{define "count"}}
+{{if eq .Count 0}}
+  <span class="count-zero">no results</span>
+  <span class="count-time">·  {{.Millis}}ms</span>
+{{else}}
+  <span class="count-num">{{.Formatted}}</span>
+  <span class="count-unit">{{if eq .Count 1}}result{{else}}results{{end}}</span>
+  <span class="count-time">·  {{.Millis}}ms</span>
+{{end}}
+{{end}}
+
+{{define "count-error"}}
+<span class="count-error">count failed: {{.}}</span>
+{{end}}

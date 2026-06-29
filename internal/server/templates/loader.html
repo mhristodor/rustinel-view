@@ -1,0 +1,9 @@
+{{define "row-loader"}}
+<tr class="row-loader"
+    hx-get="{{loaderQuery .NextCursor}}"
+    hx-trigger="intersect once"
+    hx-swap="outerHTML"
+    hx-include="#filters">
+  <td colspan="99"><span class="glyph">▰</span>loading more…</td>
+</tr>
+{{end}}

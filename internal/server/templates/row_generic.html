@@ -1,0 +1,35 @@
+{{define "row-generic"}}
+{{$r := .Row}}
+<tr class="row {{if eq $r.Kind "a"}}row-alert{{else}}row-event {{catClass $r.Event.Category}}{{end}}{{if $r.Burst}} row-burst{{end}}" data-detail-url="{{detailURL $r}}">
+  {{range .Cols}}
+    {{if eq . "time"}}
+      <td class="col-time">{{fmtTime $r.Timestamp}}</td>
+    {{else if eq . "kind"}}
+      <td class="col-kind">
+        {{if eq $r.Kind "a"}}<span class="badge badge-alert">ALERT</span>
+        {{else}}<span class="badge badge-event {{catClass $r.Event.Category}}">{{eventAction $r.Event}}</span>{{end}}
+      </td>
+    {{else if eq . "process"}}
+      <td class="col-process">
+        {{if eq $r.Kind "a"}}
+          {{if $r.Alert.ProcessName}}<span class="cell-q" data-q-field="name" data-q-val="{{$r.Alert.ProcessName}}">{{$r.Alert.ProcessName}}</span>{{else}}—{{end}}
+        {{else}}
+          {{with index $r.Event.Fields "Image"}}<span class="cell-q" data-q-field="image" data-q-val="{{.}}">{{.}}</span>{{else}}—{{end}}
+        {{end}}
+      </td>
+    {{else if eq . "summary"}}
+      <td class="col-summary">
+        <span class="summary-text">{{if eq $r.Kind "a"}}{{alertSummary $r.Alert}}{{else}}{{eventSummary $r.Event}}{{end}}</span>
+        {{if $r.Burst}}
+          <span class="burst-chip" title="collapsed burst — click to expand">
+            ×{{$r.Burst.Count}}<span class="dim"> {{fmtBurstSpan $r.Burst.Span}}</span>
+          </span>
+        {{end}}
+      </td>
+    {{else}}
+      {{$v := fieldValue $r .}}
+      <td class="col-f col-{{.}}">{{if $v}}<span class="cell-q" data-q-field="{{.}}" data-q-val="{{$v}}">{{$v}}</span>{{else}}—{{end}}</td>
+    {{end}}
+  {{end}}
+</tr>
+{{end}}

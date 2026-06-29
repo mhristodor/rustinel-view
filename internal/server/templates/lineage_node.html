@@ -1,0 +1,108 @@
+{{define "lin-node"}}
+{{$n := .}}
+{{$isOrigin := $n.IsOrigin}}
+{{$alerted := gt $n.AlertCount 0}}
+{{$sevCls := linSevClass $n.MaxAlertSev}}
+{{/* The branch wrapper owns the tree geometry: connector rails are drawn
+     on its pseudo-elements, --d drives the per-depth rail hue, and
+     lin-path marks the root→origin spine for the accent-colored trail. */}}
+<div class="lin-branch{{if or $n.IsAncestor $isOrigin}} lin-path{{end}}" style="--d:{{$n.Depth}}">
+<div class="lin-node{{if $isOrigin}} is-origin{{end}}{{if $n.IsAncestor}} is-ancestor{{end}}{{if $alerted}} alerted {{$sevCls}}{{end}}"
+     data-pid="{{$n.PID}}">
+  <div class="lin-node-head" data-node-toggle role="button" tabindex="0" aria-expanded="false">
+    <span class="lin-toggle-glyph">{{icon "chevron-down"}}</span>
+    {{if $alerted}}<span class="lin-alert-dot" aria-hidden="true">●</span>{{end}}
+    <span class="lin-pid">{{$n.PID}}</span>
+    <span class="lin-name">{{if $n.ProcessName}}{{$n.ProcessName}}{{else}}—{{end}}</span>
+    {{if $n.CommandLine}}<span class="lin-cmd">{{truncStr $n.CommandLine 140}}</span>{{end}}
+    <span class="lin-badges">
+      {{with index $n.EventCounts "Process"}}{{if .}}<span class="lin-badge bp">{{.}}P</span>{{end}}{{end}}
+      {{with index $n.EventCounts "File"}}{{if .}}<span class="lin-badge bf">{{.}}F</span>{{end}}{{end}}
+      {{with index $n.EventCounts "Network"}}{{if .}}<span class="lin-badge bn">{{.}}N</span>{{end}}{{end}}
+      {{with index $n.EventCounts "Dns"}}{{if .}}<span class="lin-badge bd">{{.}}D</span>{{end}}{{end}}
+      {{if $alerted}}<span class="lin-badge ba {{$sevCls}}">{{$n.AlertCount}}!</span>{{end}}
+    </span>
+    <span class="lin-node-actions">
+      {{if $n.IsAncestor}}<span class="lin-ancestor-tag">↑ ancestor</span>{{end}}
+      <button type="button" class="lin-info" data-node-info-btn aria-label="process info">{{icon "info"}}</button>
+      {{if $isOrigin}}
+        <span class="lin-origin-tag">★ origin ★</span>
+      {{else}}
+        <a href="/lineage/{{$n.PID}}" class="lin-pivot" aria-label="pivot lineage to this pid">{{icon "pivot"}}</a>
+      {{end}}
+    </span>
+  </div>
+
+  <div class="lin-node-body" hidden>
+    <div class="lin-meta">
+      {{if $n.Image}}<div class="lin-meta-row"><span class="lin-meta-k">image</span><span class="lin-meta-v mono">{{$n.Image}}</span></div>{{end}}
+      {{if $n.CommandLine}}<div class="lin-meta-row lin-meta-wrap"><span class="lin-meta-k">cmd</span><span class="lin-meta-v mono lin-meta-cmd">{{$n.CommandLine}}</span></div>{{end}}
+      {{if $n.User}}<div class="lin-meta-row"><span class="lin-meta-k">user</span><span class="lin-meta-v mono">{{$n.User}}</span></div>{{end}}
+      {{if $n.ParentPID}}<div class="lin-meta-row"><span class="lin-meta-k">parent pid</span><span class="lin-meta-v mono">{{$n.ParentPID}}</span></div>{{end}}
+      {{if not $n.FirstSeen.IsZero}}<div class="lin-meta-row"><span class="lin-meta-k">window</span><span class="lin-meta-v mono">{{fmtTime $n.FirstSeen}} → {{fmtTime $n.LastSeen}}</span></div>{{end}}
+    </div>
+
+    {{if $alerted}}
+      <div class="lin-section sec-alerts">
+        <div class="lin-section-head lin-section-head-static">
+          <span class="lin-section-title">Alerts</span>
+          <span class="lin-section-count">{{$n.AlertCount}}</span>
+        </div>
+        <div class="lin-section-body">
+          {{range $n.Alerts}}
+            <div class="lin-ev lin-alert-row sev-{{lower .Severity}}" data-event-id="{{.ID}}" data-event-kind="a">
+              <span class="le-time">{{fmtTime .Timestamp}}</span>
+              <span class="le-sev">[{{upper .Severity}}]</span>
+              <span class="le-rule">{{.RuleName}}</span>
+              <span class="le-engine">{{.Engine}}</span>
+              <button class="lin-copy" type="button" data-copy-event-json data-id="{{.ID}}" data-kind="a" aria-label="copy alert JSON">{{icon "copy"}}</button>
+            </div>
+          {{end}}
+        </div>
+      </div>
+    {{end}}
+
+    {{template "lin-cat-section" dict "Title" "Process" "Cat" "Process" "Class" "process" "Node" $n "Threshold" 1}}
+    {{template "lin-cat-section" dict "Title" "File"    "Cat" "File"    "Class" "file"    "Node" $n "Threshold" 0}}
+    {{template "lin-cat-section" dict "Title" "Network" "Cat" "Network" "Class" "network" "Node" $n "Threshold" 0}}
+    {{template "lin-cat-section" dict "Title" "DNS"     "Cat" "Dns"     "Class" "dns"     "Node" $n "Threshold" 0}}
+  </div>
+</div>
+
+{{/* Children render as siblings of the node card, not inside it — the
+     old nesting wrapped every subtree in its parent's border, which is
+     what made depth unreadable. */}}
+{{if $n.Children}}
+  <div class="lin-children">
+    {{range $n.Children}}{{template "lin-node" .}}{{end}}
+  </div>
+{{end}}
+{{if gt $n.ChildrenTruncated 0}}
+  <div class="lin-truncated">+{{$n.ChildrenTruncated}} more descendants not shown (depth/node cap)</div>
+{{end}}
+</div>
+{{end}}
+
+{{define "lin-cat-section"}}
+{{$count := index .Node.EventCounts .Cat}}
+{{if gt $count .Threshold}}
+{{$shown := index .Node.Events .Cat}}
+<div class="lin-section sec-{{.Class}}">
+  <button type="button" class="lin-section-head" data-section-toggle aria-expanded="false">
+    <span class="lin-section-caret">{{icon "chevron-down"}}</span>
+    <span class="lin-section-title">{{.Title}}</span>
+    <span class="lin-section-count">{{$count}}</span>
+  </button>
+  <div class="lin-section-body" hidden>
+    {{range $shown}}
+      <div class="lin-ev" data-event-id="{{.ID}}" data-event-kind="e">
+        <span class="le-time">{{fmtTime .Timestamp}}</span>
+        <span class="le-action">{{.Action}}</span>
+        <span class="le-summary mono">{{.Summary}}</span>
+        <button class="lin-copy" type="button" data-copy-event-json data-id="{{.ID}}" data-kind="e" aria-label="copy event JSON">{{icon "copy"}}</button>
+      </div>
+    {{end}}
+  </div>
+</div>
+{{end}}
+{{end}}

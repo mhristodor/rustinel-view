@@ -1,0 +1,203 @@
+{{define "layout"}}<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>rustinel — view</title>
+  <link rel="stylesheet" href="/static/app.css?v={{.AssetVer}}">
+  <script>window.RV_ICONS = {{iconsJSON}};</script>
+  <script src="/static/app.js?v={{.AssetVer}}" defer></script>
+</head>
+<body
+  data-snapshot-earliest="{{.Meta.EarliestEvent.UnixNano}}"
+  data-snapshot-latest="{{.Meta.LatestEvent.UnixNano}}">
+
+<div class="shell">
+
+  <header class="header">
+    <h1>
+      <a href="/" class="header-home">
+        <span class="glyph">▰</span>RUSTINEL <span class="sub">// VIEW</span>
+      </a>
+    </h1>
+    <span class="view-mode-group">
+      <label class="switch"
+             data-tip="Drops pure sensor noise: DNS events with QueryName '.' or empty RecordType 'OTHER', and any event where every key field is empty. Alerts are never dropped."
+             data-tip-pos="below">
+        <input type="checkbox" name="garbage" value="1" form="filters" checked>
+        <span class="switch-track"><span class="switch-knob"></span></span>
+        <span class="switch-label">drop garbage</span>
+      </label>
+      <label class="switch"
+             data-tip="Folds same-key event bursts (DNS chatter, network flow re-emission, file-tree writes, repeated process exec) into a single row with a ×N count. Click any burst to expand."
+             data-tip-pos="below">
+        <input type="checkbox" name="collapse" value="1" form="filters" checked>
+        <span class="switch-track"><span class="switch-knob"></span></span>
+        <span class="switch-label">dedup noise</span>
+      </label>
+    </span>
+
+    <span class="kb-help" tabindex="0" aria-label="keyboard shortcuts">
+      <span class="kb-help-icon">?</span>
+      <span class="kb-help-popover" role="tooltip">
+        <span class="kb-help-title">keyboard</span>
+        <span class="kb-key"><kbd>j</kbd> / <kbd>↓</kbd></span><span class="kb-desc">next row</span>
+        <span class="kb-key"><kbd>k</kbd> / <kbd>↑</kbd></span><span class="kb-desc">prev row</span>
+        <span class="kb-key"><kbd>enter</kbd></span><span class="kb-desc">open / close detail</span>
+        <span class="kb-key"><kbd>c</kbd></span><span class="kb-desc">copy detail JSON</span>
+        <span class="kb-key"><kbd>/</kbd></span><span class="kb-desc">focus search</span>
+        <span class="kb-key"><kbd>g</kbd> / <kbd>G</kbd></span><span class="kb-desc">top / bottom</span>
+        <span class="kb-key"><kbd>esc</kbd></span><span class="kb-desc">close detail / blur input</span>
+      </span>
+    </span>
+
+    <div class="stats">
+      <div class="stat">
+        <span class="stat-key">Alerts</span>
+        <span class="stat-val">{{counts .Meta.AlertsParsed}}</span>
+      </div>
+      <div class="stat stat-sub">
+        <span class="stat-key">Sigma</span>
+        <span class="stat-val">{{counts .Meta.SigmaCount}}</span>
+      </div>
+      <div class="stat stat-sub">
+        <span class="stat-key">Yara</span>
+        <span class="stat-val">{{counts .Meta.YaraCount}}</span>
+      </div>
+
+      <div class="stat">
+        <span class="stat-key">Events</span>
+        <span class="stat-val">{{counts .Meta.EventsParsed}}</span>
+      </div>
+      <div class="stat stat-sub">
+        <span class="stat-key">Process</span>
+        <span class="stat-val">{{counts .Meta.ProcessCount}}</span>
+      </div>
+      <div class="stat stat-sub">
+        <span class="stat-key">File</span>
+        <span class="stat-val">{{counts .Meta.FileCount}}</span>
+      </div>
+      <div class="stat stat-sub">
+        <span class="stat-key">Network</span>
+        <span class="stat-val">{{counts .Meta.NetworkCount}}</span>
+      </div>
+      <div class="stat stat-sub">
+        <span class="stat-key">Dns</span>
+        <span class="stat-val">{{counts .Meta.DnsCount}}</span>
+      </div>
+
+      {{if not .Meta.EarliestEvent.IsZero}}
+      <div class="stat">
+        <span class="stat-key">Span</span>
+        <span class="stat-val">{{fmtSpan .Meta.EarliestEvent .Meta.LatestEvent}}</span>
+      </div>
+      {{end}}
+      <div class="stat">
+        <span class="stat-key">Ingest</span>
+        <span class="stat-val">{{.Meta.IngestMillis}}ms</span>
+        {{if or .Meta.AlertsFailed .Meta.EventsFailed}}
+          <span class="stat-warn">{{.Meta.AlertsFailed}}a / {{.Meta.EventsFailed}}e fail</span>
+        {{end}}
+      </div>
+    </div>
+  </header>
+
+  <form id="filters" class="filters" autocomplete="off">
+
+    <input type="hidden" name="form" value="1">
+
+    <div class="filter-group">
+      <span class="filter-label">source</span>
+      <label class="chip"><input type="checkbox" name="src" value="alerts" checked><span class="led"></span>Alerts</label>
+      <label class="chip"><input type="checkbox" name="src" value="events" checked><span class="led"></span>Events</label>
+    </div>
+
+    <div class="filter-group">
+      <span class="filter-label">category</span>
+
+      <span class="cat-pair">
+        <label class="chip chip-cat"><input type="checkbox" name="cat" value="Process" checked><span class="led"></span>Process</label>
+        <button type="button" class="chip-expand" data-popover="popover-process" aria-label="process actions">{{icon "chevron-down"}}</button>
+        <div class="action-popover" id="popover-process">
+          <label class="mini"><input type="checkbox" name="action" value="PROCESS_CREATE"> Create</label>
+          <label class="mini"><input type="checkbox" name="action" value="PROCESS_TERMINATE"> Terminate</label>
+        </div>
+      </span>
+
+      <span class="cat-pair">
+        <label class="chip chip-cat"><input type="checkbox" name="cat" value="File" checked><span class="led"></span>File</label>
+        <button type="button" class="chip-expand" data-popover="popover-file" aria-label="file actions">{{icon "chevron-down"}}</button>
+        <div class="action-popover" id="popover-file">
+          <label class="mini"><input type="checkbox" name="action" value="FILE_CREATE"> Create</label>
+          <label class="mini"><input type="checkbox" name="action" value="FILE_DELETE"> Delete</label>
+          <label class="mini"><input type="checkbox" name="action" value="FILE_CHANGE"> Change</label>
+          <label class="mini"><input type="checkbox" name="action" value="FILE_RENAME"> Rename</label>
+        </div>
+      </span>
+
+      <label class="chip chip-cat"><input type="checkbox" name="cat" value="Network"><span class="led"></span>Network</label>
+      <label class="chip chip-cat"><input type="checkbox" name="cat" value="Dns"><span class="led"></span>DNS</label>
+    </div>
+
+    <button type="reset" class="btn-reset">Reset</button>
+
+    <span class="cat-pair">
+      <div class="action-popover cols-popover" id="cols-popover"></div>
+    </span>
+
+    {{/* Time range is set by brush-dragging on the density strip (see
+         app.js applyTimeRange). The hidden inputs carry the resulting
+         from/to into the form-bus; Reset clears them. No calendar UI. */}}
+    <input type="hidden" name="from" id="time-from">
+    <input type="hidden" name="to" id="time-to">
+  </form>
+
+  <div class="results-bar" id="results-bar" aria-live="polite">
+    <div class="query-wrap" id="query-wrap">
+      <span class="query-label">QUERY</span>
+      <input class="query-input" type="text" name="query"
+             form="filters"
+             id="query-input"
+             placeholder='pid:442059 AND severity:Critical'
+             autocomplete="off" spellcheck="false">
+      <button type="button" class="query-clear" id="query-clear"
+              aria-label="clear query" hidden>{{icon "x"}}</button>
+      <div class="query-suggest" id="query-suggest" hidden></div>
+      <span class="query-status" id="query-status" aria-live="polite"></span>
+    </div>
+    <div class="results-count" id="results-count">
+      <span class="count-loading">computing…</span>
+    </div>
+    <a class="export-btn" id="export-link" href="/export">
+      {{icon "download"}}<span class="export-label">export</span>
+    </a>
+  </div>
+
+  <div class="density-strip" id="density-strip" aria-label="event density over time">
+    <svg id="density-svg" preserveAspectRatio="none" focusable="false"></svg>
+    <div class="density-tip" id="density-tip" hidden></div>
+    <div class="density-empty" id="density-empty" hidden>no activity in current filter</div>
+  </div>
+
+  <main class="main">
+    <table class="timeline">
+      <thead id="thead">
+        <tr>
+          {{$multi := gt (len .Cols) 1}}
+          {{range .Cols}}
+            <th class="col-{{.}}" data-col="{{.}}">{{colLabel .}}<span class="col-tools"><button type="button" class="col-tool" data-col-move="left" aria-label="move column left">{{icon "chevron-left"}}</button>{{if $multi}}<button type="button" class="col-tool" data-col-remove aria-label="remove column">{{icon "x"}}</button>{{end}}<button type="button" class="col-tool" data-col-move="right" aria-label="move column right">{{icon "chevron-right"}}</button></span><span class="col-resizer" data-col-resizer></span></th>
+          {{end}}
+          <th class="col-add"><button type="button" class="col-add-btn" id="col-add-btn" aria-label="add column">{{icon "plus"}}</button></th>
+        </tr>
+      </thead>
+      <tbody id="tbody">
+        {{template "rows" .Initial}}
+      </tbody>
+    </table>
+  </main>
+
+</div>
+
+</body>
+</html>
+{{end}}

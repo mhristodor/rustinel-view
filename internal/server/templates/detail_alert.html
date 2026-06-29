@@ -1,0 +1,106 @@
+{{define "detail-alert"}}
+{{$a := .Alert}}
+<tr class="detail-row detail-alert">
+<td colspan="99">
+<div class="detail-body">
+  <div class="detail-header">
+    <span class="badge badge-alert">ALERT</span>
+    <span class="title">{{$a.EDRRuleEngine}}</span>
+    {{if .Burst}}<span class="burst-chip">×{{.Burst.Count}} <span class="dim">{{.Burst.Span}}</span></span>{{end}}
+    <span class="ts">{{fmtTimeFull $a.Timestamp}}</span>
+    {{if $a.ProcessPID}}
+      <a class="detail-pivot" href="/lineage/{{$a.ProcessPID}}">
+        <span class="pivot-icon">{{icon "pivot"}}</span><span class="pivot-label">lineage</span>
+      </a>
+    {{end}}
+    <button class="detail-copy" type="button" data-copy-json>
+      <span class="copy-icon">{{icon "copy"}}</span><span class="copy-label">copy</span>
+    </button>
+    <button class="detail-close" type="button" data-close-detail aria-label="close">{{icon "x"}}</button>
+  </div>
+  <div class="detail-json-source" hidden>{{prettyJSON $a}}</div>
+
+  <div class="detail-field"><span class="k">rule</span>
+    <span class="v q-click" data-q-field="rule" data-q-val="{{$a.RuleName}}">{{$a.RuleName}}</span></div>
+  {{if hasContent $a.RuleDescription}}
+    <div class="detail-field"><span class="k">desc</span><span class="v dim">{{$a.RuleDescription}}</span></div>
+  {{end}}
+  <div class="detail-field"><span class="k">severity</span>
+    <span class="v">
+      <span class="q-click" data-q-field="severity" data-q-val="{{$a.EDRRuleSeverity}}">{{$a.EDRRuleSeverity}}</span>
+      <span class="dim"> ({{$a.EventSeverity}})</span>
+    </span>
+  </div>
+  <div class="detail-field"><span class="k">engine</span>
+    <span class="v q-click" data-q-field="engine" data-q-val="{{$a.EDRRuleEngine}}">{{$a.EDRRuleEngine}}</span></div>
+  <div class="detail-field"><span class="k">action</span>
+    <span class="v q-click" data-q-field="action" data-q-val="{{$a.EventAction}}">{{$a.EventAction}}</span></div>
+
+  <div class="detail-section">
+    <div class="section-label">Process</div>
+    <div class="detail-field"><span class="k">name</span>
+      <span class="v q-click" data-q-field="name" data-q-val="{{$a.ProcessName}}">{{$a.ProcessName}}</span></div>
+    <div class="detail-field"><span class="k">pid</span>
+      <span class="v q-click" data-q-field="pid" data-q-val="{{$a.ProcessPID}}">{{$a.ProcessPID}}</span></div>
+    <div class="detail-field"><span class="k">exec</span>
+      <span class="v mono q-click" data-q-field="image" data-q-val="{{$a.ProcessExecutable}}">{{$a.ProcessExecutable}}</span></div>
+    {{if hasContent $a.ProcessCommandLine}}
+      <div class="detail-field"><span class="k">cmdline</span>
+        <span class="v mono q-click" data-q-field="cmdline" data-q-val="{{$a.ProcessCommandLine}}">{{$a.ProcessCommandLine}}</span></div>
+    {{end}}
+    {{if hasContent $a.ProcessWorkingDirectory}}
+      <div class="detail-field"><span class="k">cwd</span><span class="v mono">{{$a.ProcessWorkingDirectory}}</span></div>
+    {{end}}
+  </div>
+
+  {{if or (hasContent $a.ProcessParentName) $a.ProcessParentPID}}
+  <div class="detail-section">
+    <div class="section-label">Parent</div>
+    {{if hasContent $a.ProcessParentName}}
+      <div class="detail-field"><span class="k">name</span><span class="v">{{$a.ProcessParentName}}</span></div>
+    {{end}}
+    {{if $a.ProcessParentPID}}
+      <div class="detail-field"><span class="k">pid</span>
+        <span class="v q-click" data-q-field="parent_pid" data-q-val="{{$a.ProcessParentPID}}">{{$a.ProcessParentPID}}</span></div>
+    {{end}}
+    {{if hasContent $a.ProcessParentExecutable}}
+      <div class="detail-field"><span class="k">exec</span>
+        <span class="v mono q-click" data-q-field="parent_image" data-q-val="{{$a.ProcessParentExecutable}}">{{$a.ProcessParentExecutable}}</span></div>
+    {{end}}
+    {{if hasContent $a.ProcessParentCommandLine}}
+      <div class="detail-field"><span class="k">cmdline</span>
+        <span class="v mono q-click" data-q-field="parent_cmdline" data-q-val="{{$a.ProcessParentCommandLine}}">{{$a.ProcessParentCommandLine}}</span></div>
+    {{end}}
+  </div>
+  {{end}}
+
+  <div class="detail-section">
+    <div class="section-label">Context</div>
+    {{if hasContent $a.UserName}}
+      <div class="detail-field"><span class="k">user</span>
+        <span class="v q-click" data-q-field="user" data-q-val="{{$a.UserName}}">{{$a.UserName}}</span></div>
+    {{end}}
+    {{if hasContent $a.HostOSFamily}}
+      <div class="detail-field"><span class="k">host os</span><span class="v">{{$a.HostOSFamily}}/{{$a.HostOSType}}</span></div>
+    {{end}}
+    <div class="detail-field"><span class="k">id</span><span class="v dim">a:{{$a.ID}}</span></div>
+  </div>
+
+  {{if .Burst}}
+  <div class="detail-section detail-burst">
+    <div class="section-label">Burst members — ×{{.Burst.Count}} over {{.Burst.Span}}</div>
+    {{range .Burst.Members}}
+      <div class="detail-field burst-member">
+        <span class="k">{{fmtTime .Time}}</span>
+        <span class="v mono">{{.Summary}}</span>
+      </div>
+    {{end}}
+    {{if .Burst.Hidden}}
+      <div class="detail-field dim">+{{.Burst.Hidden}} more not shown</div>
+    {{end}}
+  </div>
+  {{end}}
+</div>
+</td>
+</tr>
+{{end}}

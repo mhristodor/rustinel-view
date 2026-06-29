@@ -1,0 +1,65 @@
+{{define "detail-event"}}
+{{$e := .Event}}
+<tr class="detail-row detail-event {{catClass $e.Category}}">
+<td colspan="99">
+<div class="detail-body">
+  <div class="detail-header">
+    <span class="badge badge-event {{catClass $e.Category}}">{{eventAction $e}}</span>
+    <span class="title">{{$e.Category}} #{{$e.EventID}}</span>
+    {{if .Burst}}<span class="burst-chip">×{{.Burst.Count}} <span class="dim">{{.Burst.Span}}</span></span>{{end}}
+    <span class="ts">{{fmtTimeFull $e.Timestamp}}</span>
+    {{with index $e.Fields "ProcessId"}}{{if .}}
+      <a class="detail-pivot" href="/lineage/{{.}}">
+        <span class="pivot-icon">{{icon "pivot"}}</span><span class="pivot-label">lineage</span>
+      </a>
+    {{end}}{{end}}
+    <button class="detail-copy" type="button" data-copy-json>
+      <span class="copy-icon">{{icon "copy"}}</span><span class="copy-label">copy</span>
+    </button>
+    <button class="detail-close" type="button" data-close-detail aria-label="close">{{icon "x"}}</button>
+  </div>
+  <div class="detail-json-source" hidden>{{prettyJSON $e}}</div>
+
+  <div class="detail-field"><span class="k">action</span>
+    <span class="v q-click" data-q-field="action" data-q-val="{{eventAction $e}}">{{eventAction $e}}</span></div>
+  <div class="detail-field"><span class="k">category</span>
+    <span class="v q-click" data-q-field="category" data-q-val="{{$e.Category}}">{{$e.Category}}</span></div>
+  <div class="detail-field"><span class="k">event_id</span><span class="v">{{$e.EventID}}</span></div>
+  <div class="detail-field"><span class="k">opcode</span><span class="v">{{$e.Opcode}}</span></div>
+  {{if hasContent $e.Platform}}
+    <div class="detail-field"><span class="k">platform</span><span class="v dim">{{$e.Platform}}/{{$e.Provider}}</span></div>
+  {{end}}
+
+  <div class="detail-section">
+    <div class="section-label">Fields</div>
+    {{range fieldEntries $e.Fields}}
+      <div class="detail-field">
+        <span class="k">{{.K}}</span>
+        <span class="v mono q-click" data-q-key="{{.K}}" data-q-val="{{.V}}">{{.V}}</span>
+      </div>
+    {{end}}
+  </div>
+
+  <div class="detail-section">
+    <div class="section-label">Identity</div>
+    <div class="detail-field"><span class="k">id</span><span class="v dim">e:{{$e.ID}}</span></div>
+  </div>
+
+  {{if .Burst}}
+  <div class="detail-section detail-burst">
+    <div class="section-label">Burst members — ×{{.Burst.Count}} over {{.Burst.Span}}</div>
+    {{range .Burst.Members}}
+      <div class="detail-field burst-member">
+        <span class="k">{{fmtTime .Time}}</span>
+        <span class="v mono">{{.Summary}}</span>
+      </div>
+    {{end}}
+    {{if .Burst.Hidden}}
+      <div class="detail-field dim">+{{.Burst.Hidden}} more not shown</div>
+    {{end}}
+  </div>
+  {{end}}
+</div>
+</td>
+</tr>
+{{end}}

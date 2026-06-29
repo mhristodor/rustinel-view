@@ -1,0 +1,31 @@
+{{define "row-empty"}}
+<tr class="row-empty">
+  <td colspan="99">
+    <span class="brackets">┌ ─ ─ ┐</span>
+    no records match filters
+    <br><br>
+    <a href="/" onclick="document.getElementById('filters').reset(); htmx.trigger('#filters','change'); return false;">reset filters</a>
+    <br>
+    <span class="brackets">└ ─ ─ ┘</span>
+  </td>
+</tr>
+{{end}}
+
+{{define "row-error"}}
+<tr class="row-error">
+  <td colspan="99">query error: {{.}}</td>
+</tr>
+{{end}}
+
+{{define "detail-not-found"}}
+<tr class="detail-row">
+<td colspan="99">
+<div class="detail-body">
+  <div class="detail-header">
+    <span class="title">record not found</span>
+    <button class="detail-close" type="button" data-close-detail title="close">{{icon "x"}}</button>
+  </div>
+</div>
+</td>
+</tr>
+{{end}}
