@@ -331,9 +331,9 @@ func hasContent(s any) bool {
 	return false
 }
 
-// loaderQuery builds the URL the loader row HTMX-gets for the next page.
-// Only carries the cursor — hx-include picks up the rest from the filter
-// form on each fire.
+// loaderQuery builds the next-page URL stamped onto the loader row's
+// data-next attribute. Only carries the cursor — app.js merges the
+// current filter-form state in when it fetches the next page.
 func loaderQuery(cursor int64) template.URL {
 	v := url.Values{}
 	v.Set("cursor", itoa64(cursor))

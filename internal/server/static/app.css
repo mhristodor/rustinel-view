@@ -635,10 +635,10 @@ table.timeline td {
 }
 
 /* ---------- inline detail row ----------
-   When a row is clicked, an extra <tr class="detail-row"> is inserted
-   directly after it via HTMX `hx-swap="afterend"`. The detail-row spans
-   the full table width via colspan and holds the full record. Only one
-   open at a time — each new click clears prior detail-rows. */
+   When a row is clicked, app.js inserts an extra <tr class="detail-row">
+   directly after it (afterend). The detail-row spans the full table width
+   via colspan and holds the full record. Only one open at a time — each
+   new click clears prior detail-rows. */
 
 tr.detail-row {
   background: var(--bg-surface);
@@ -804,11 +804,6 @@ tr.detail-row.cat-dns      > td { border-left-color: var(--cat-dns);      }
   outline: 1px solid var(--accent);
   outline-offset: 1px;
 }
-
-/* ---------- htmx loading indicator ---------- */
-
-.htmx-request .htmx-indicator { opacity: 1; }
-.htmx-indicator { opacity: 0; transition: opacity var(--t-fast); }
 
 /* ---------- responsive breakpoints ----------
    The single-column layout now lives at every width — detail rows are

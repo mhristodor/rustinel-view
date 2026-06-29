@@ -192,7 +192,7 @@ type fragmentData struct {
 // handlePage renders the full layout with the first timeline page. The
 // very first page load (no query string at all) uses the MVP default
 // filter set: cat=Process,File. Subsequent loads honor whatever the
-// filter form posted via HTMX.
+// filter form carried into the request query string.
 func (s *Server) handlePage(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
 		http.NotFound(w, r)
@@ -481,8 +481,9 @@ func (s *Server) handleDensity(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(d)
 }
 
-// handleTimeline is the HTMX fragment endpoint. Returns the rows
-// fragment — soft-degrades on bad query params (never 4xx).
+// handleTimeline is the rows-fragment endpoint the JS virtual list
+// fetches per page. Returns the rows fragment — soft-degrades on bad
+// query params (never 4xx).
 func (s *Server) handleTimeline(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	page, err := s.store.TimelinePage(ctx, parseFilters(r))

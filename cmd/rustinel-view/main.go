@@ -1,14 +1,14 @@
 // Command rustinel-view parses a rustinel alerts file and a rustinel
 // events log, loads them into an in-process Redis (miniredis), and serves
-// an HTMX-driven killchain triage UI.
+// a killchain triage UI rendered as server-side HTML.
 //
 // Usage:
 //
 //	rustinel-view [flags] <alerts.log> <events.log>
 //
-// The viewer is fully self-contained: no external Redis to install, no
-// JSON API surface, no JavaScript framework — only HTMX over server-rendered
-// HTML fragments. Redis lives for the lifetime of the binary.
+// The viewer is fully self-contained: no external Redis to install and no
+// JavaScript framework — a dependency-free vanilla-JS virtual list fetches
+// server-rendered HTML fragments. Redis lives for the lifetime of the binary.
 package main
 
 import (

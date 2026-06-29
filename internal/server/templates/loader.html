@@ -1,9 +1,5 @@
 {{define "row-loader"}}
-<tr class="row-loader"
-    hx-get="{{loaderQuery .NextCursor}}"
-    hx-trigger="intersect once"
-    hx-swap="outerHTML"
-    hx-include="#filters">
+<tr class="row-loader" data-next="{{loaderQuery .NextCursor}}">
   <td colspan="99"><span class="glyph">▰</span>loading more…</td>
 </tr>
 {{end}}

@@ -1,18 +1,24 @@
-# rustinel-view
+<div align="center">
 
-![Go](https://img.shields.io/badge/Go-1.26%2B-00ADD8?logo=go&logoColor=white)
-![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue)
-![Frontend: HTMX](https://img.shields.io/badge/frontend-HTMX%2C%20no%20JS%20framework-3366CC)
+# ▰ rustinel-view
 
-A read-only triage UI for [Rustinel](https://github.com/Karib0u/rustinel) EDR
-snapshots. Give it an alerts file and an events log; it merges them into one
+**Read-only killchain triage for [Rustinel](https://github.com/Karib0u/rustinel) EDR snapshots.**
+
+Point it at an alerts file and an events log; it merges them into one
 process-aware timeline you can filter, pivot, and walk in the browser.
 
-It is a companion tool, not part of Rustinel. Rustinel does the detection and
-writes the logs. This reads those logs after the fact. There is no live agent,
-no database to stand up, and no API to wire into a SIEM.
+![Go](https://img.shields.io/badge/Go-1.26%2B-00ADD8?logo=go&logoColor=white)
+&nbsp;![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue)
+&nbsp;![Frontend](https://img.shields.io/badge/frontend-vanilla_JS%2C_no_build_step-3366CC)
+&nbsp;![Mode](https://img.shields.io/badge/mode-read--only-555)
+
+</div>
 
 ![rustinel-view timeline: alerts and events merged into one killchain, with category filters, a query bar, and an activity histogram](assets/timeline.png)
+
+> **A companion tool, not part of Rustinel.** Rustinel does the detection and
+> writes the logs; this reads them after the fact. There is no live agent, no
+> database to stand up, and no API to wire into a SIEM.
 
 ## Features
 
@@ -22,6 +28,7 @@ no database to stand up, and no API to wire into a SIEM.
 - **Burst collapse.** Repetitive same-key activity folds into one row with a count and a time span, so a thousand identical DNS lookups don't bury the one that matters.
 - **Two-tier noise filtering.** Unconditional drops at ingest plus a toggle for low-signal sensor chatter, so the default view is already quiet.
 - **Self-contained.** A single static Go binary with an in-process Redis. Nothing to install, nothing written to disk, data gone the moment you quit.
+- **No build step.** The UI is server-rendered HTML plus one hand-written vanilla-JS file — no framework, no bundler, no `node_modules`. A virtual list keeps the live DOM bounded, so the timeline stays smooth across hundreds of thousands of rows.
 
 ## How it works
 
@@ -30,7 +37,7 @@ When the binary starts it:
 1. Boots an in-process Redis ([miniredis](https://github.com/alicebob/miniredis)), so there is nothing to install.
 2. Parses the alerts JSON and the events log into that store.
 3. Decodes one read snapshot up front, so the first page is as fast as the hundredth.
-4. Serves plain server-rendered HTML, driven by HTMX.
+4. Serves server-rendered HTML fragments. A dependency-free vanilla-JS virtual list in the browser fetches them (`/timeline`, `/count`, `/density`) and mounts only the rows in view.
 
 The data only lives as long as the process. Quit the binary and it is gone.
 Nothing is written back to disk.
@@ -202,7 +209,7 @@ target:/etc/* action:FILE_DELETE
 | Route | Purpose |
 |-------|---------|
 | `GET /` | main triage page |
-| `GET /timeline` | timeline rows (HTMX fragment) |
+| `GET /timeline` | timeline rows (HTML fragment) |
 | `GET /count` / `GET /density` | result count / time-bucket histogram |
 | `GET /lineage/{pid}` | process-tree lineage for a PID |
 | `GET /detail/{kind}/{id}` | full record detail (`a` alert / `e` event) |
@@ -228,6 +235,11 @@ A few decisions that keep the viewer fast and quiet on real snapshots:
   an atomic pointer. That turns a per-query re-fetch-and-JSON-decode (~200-400ms)
   into a slice scan (~5ms). Any write nils the pointer and the next read
   rebuilds; the snapshot is warmed at startup so even the first page is fast.
+- **The browser keeps a bounded DOM.** The client is a single vanilla-JS file
+  with no build step: it fetches HTML row fragments from `/timeline` and mounts
+  only the rows in (and near) the viewport, so scrolling a snapshot of hundreds
+  of thousands of rows never grows the live `<tr>` count. Static assets are
+  served from the embedded `static/` dir with a content-hash cache-buster.
 - **Burst collapse uses per-category windows.** Adjacent rows that share a
   collapse key fold into one burst row with a count and a span. The window is
   sized to how each category actually bursts: 10s for alerts, 5s for DNS and

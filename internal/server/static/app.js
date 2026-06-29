@@ -202,7 +202,7 @@
   }
 
   function readLoader(loader) {
-    const url = loader.getAttribute('hx-get') || '';
+    const url = loader.getAttribute('data-next') || '';
     if (!url) { state.hasMore = false; return; }
     try {
       const u = new URL(url, window.location.origin);
