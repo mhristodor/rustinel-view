@@ -1,5 +1,9 @@
 # rustinel-view
 
+![Go](https://img.shields.io/badge/Go-1.26%2B-00ADD8?logo=go&logoColor=white)
+![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue)
+![Frontend: HTMX](https://img.shields.io/badge/frontend-HTMX%2C%20no%20JS%20framework-3366CC)
+
 A read-only triage UI for [Rustinel](https://github.com/Karib0u/rustinel) EDR
 snapshots. Give it an alerts file and an events log; it merges them into one
 process-aware timeline you can filter, pivot, and walk in the browser.
@@ -9,6 +13,15 @@ writes the logs. This reads those logs after the fact. There is no live agent,
 no database to stand up, and no API to wire into a SIEM.
 
 ![rustinel-view timeline: alerts and events merged into one killchain, with category filters, a query bar, and an activity histogram](assets/timeline.png)
+
+## Features
+
+- **One timeline for two sources.** Detections and raw telemetry are merged and time-ordered into a single killchain, not two panes you have to mentally join.
+- **A query language that filters both.** A KQL-style bar with wildcards, numeric comparisons, quoted phrases, and field-presence tests. One expression matches alerts and events through a unified field schema.
+- **Process lineage.** Pivot on any PID to rebuild its process tree: ancestors above, descendant subtree below, with the alerts that fired on each process pinned to its node.
+- **Burst collapse.** Repetitive same-key activity folds into one row with a count and a time span, so a thousand identical DNS lookups don't bury the one that matters.
+- **Two-tier noise filtering.** Unconditional drops at ingest plus a toggle for low-signal sensor chatter, so the default view is already quiet.
+- **Self-contained.** A single static Go binary with an in-process Redis. Nothing to install, nothing written to disk, data gone the moment you quit.
 
 ## How it works
 
@@ -159,13 +172,29 @@ user  category  action  severity  rule  engine  target  query  record
 src  dst  src_port  dst_port  proto
 ```
 
+Operators:
+
+| Form | Meaning |
+|------|---------|
+| `field:value` | case-insensitive match (IP fields match exactly) |
+| `field:val*` | wildcard; multiple stars allowed, e.g. `image:*/tmp/*` |
+| `field:>N` `>=` `<` `<=` | numeric comparison, e.g. `dst_port:>1024` |
+| `field:*` | the field is present on this row |
+| `NOT field:*` | the field is absent |
+| `"quoted phrase"` | a value with spaces; `\` escapes the next character |
+| bare term | substring search across every field, e.g. `whoami` or `8.8.8.8` |
+
+Combine with `AND`, `OR`, `NOT`, and parentheses. Adjacent terms are ANDed, so
+`engine:Sigma severity:High` and `engine:Sigma AND severity:High` are the same.
+
 Examples:
 
 ```
 category:Process AND NOT user:root
-image:/usr/bin/rm cmdline:tmp
+name:py* cmdline:"-c import socket"
 engine:Sigma severity:High
-proto:tcp dst_port:443
+proto:tcp dst_port:>1024 AND NOT dst:10.*
+target:/etc/* action:FILE_DELETE
 ```
 
 ## HTTP routes
@@ -189,6 +218,32 @@ internal/ingest/       alert + event parsers
 internal/store/        miniredis-backed store, query language, lineage
 internal/server/       HTTP handlers, templates, embedded static assets
 ```
+
+## Design notes
+
+A few decisions that keep the viewer fast and quiet on real snapshots:
+
+- **Reads don't touch Redis.** miniredis is the source of truth, but queries
+  serve from an immutable, time-ordered decode of the whole dataset held behind
+  an atomic pointer. That turns a per-query re-fetch-and-JSON-decode (~200-400ms)
+  into a slice scan (~5ms). Any write nils the pointer and the next read
+  rebuilds; the snapshot is warmed at startup so even the first page is fast.
+- **Burst collapse uses per-category windows.** Adjacent rows that share a
+  collapse key fold into one burst row with a count and a span. The window is
+  sized to how each category actually bursts: 10s for alerts, 5s for DNS and
+  network, 2s for file and process activity.
+- **Noise is filtered in two tiers.** Unambiguous junk (writes to `/dev/null`)
+  is dropped at ingest and never enters the data pool, so it's gone from both
+  the timeline and the lineage tree. Softer noise (root DNS queries, events with
+  every field empty) is dropped by a toggle you can switch off for the raw stream.
+- **Lineage is one pass over the snapshot.** Index every row by PID and parent
+  PID, walk the parent chain up as a single spine, then BFS the descendants with
+  caps (depth 8, 300 nodes) so a fork bomb can't blow up the page. PID reuse is
+  handled by letting the most recently seen parent win.
+- **Event timestamps come from the log prefix.** Telemetry is scraped out of the
+  operational log by cutting each line on `normalized_json=`. The embedded JSON
+  only has second precision, so ordering uses the microsecond RFC3339Nano
+  timestamp from the log line's own prefix instead.
 
 ## Built on Rustinel
 
